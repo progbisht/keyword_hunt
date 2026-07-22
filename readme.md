@@ -8,15 +8,16 @@ An autonomous, 100% free Python agent that takes a single **seed keyword** and g
 
 - 🌐 **Multi-Source Discovery (100% Free)**: Parallel fan-out across Google Autosuggest, Google People Also Ask (PAA), Google Related Searches, Bing Suggest, and Google Trends without requiring any paid API keys.
 - 🔄 **Second-Level Expansion Loop**: Automatically runs secondary recursive fan-out queries on top candidates to unearth high-converting long-tail search phrases.
-- 🧹 **Exact & Semantic Deduplication**: Cleans formatting and merges semantically redundant keywords using local `sentence-transformers` embeddings (`all-MiniLM-L6-v2`) with cosine similarity.
+- 🧹 **Exact & Semantic Deduplication**: Cleans formatting and merges semantically redundant keywords using local `sentence-transformers` embeddings (`BAAI/bge-base-en-v1.5`) with cosine similarity.
 - 🏷️ **Search Intent & Tail-Length Classification**:
   - **Tail Type**: Classified by word count (`short-tail`: 1–2 words, `mid-tail`: 3–4 words, `long-tail`: 5+ words).
   - **Search Intent**: Automatically classified into `informational`, `commercial`, `comparison`, `transactional`, or `navigational`.
 - 📊 **Zero-Cost Volume & Difficulty Estimators**:
   - **Relative Search Volume (`volume`)**: Estimated scale computed from multi-source discovery frequency, autosuggest rank order, intent multiplier, and keyword length.
   - **Keyword Difficulty (`difficulty`)**: 0–100 difficulty score estimated from commercial intent density, search intent, and tail-length discounts.
+- 💻 **Interactive Web Dashboard**: Beautiful local dashboard to view logs in real-time, browse, search, filter, and download discovered keywords.
 - ⚡ **Upstash Redis Caching**: Automatically caches results in Upstash Redis to serve repeated seed queries instantly.
-- 🗄️ **Supabase PostgreSQL Storage**: Automatically persists discovery jobs and discovered keyword records to Supabase DB when configured.
+- 🗄️ **Supabase PostgreSQL Storage**: Automatically persists discovery jobs and discovered keyword records to Supabase DB when configured, falling back to local memory if PostgreSQL is not connected.
 
 ---
 
@@ -37,11 +38,13 @@ hunt_keyw/
 │   ├── classify.py               # Tail type mapping, intent & relevance scoring
 │   └── enrich.py                 # Free zero-cost volume & difficulty estimators
 ├── db/
-│   └── database.py               # Supabase PostgreSQL client & persistence
+│   └── database.py               # Supabase PostgreSQL client, persistence & local fallback
 ├── cache/
 │   └── redis_cache.py            # Upstash Redis caching layer
 ├── models/
 │   └── keyword.py                # Pydantic data models (KeywordItem, KeywordDiscoveryResult)
+├── static/
+│   └── index.html                # Web dashboard frontend
 ├── output/
 │   └── writer.py                 # JSON & CSV export writers
 ├── tests/                        # Pytest suite
@@ -49,6 +52,7 @@ hunt_keyw/
 │   ├── test_pipeline.py
 │   └── test_fetchers.py
 ├── main.py                       # CLI Entrypoint
+├── server.py                     # FastAPI backend & web server
 ├── .env.example                  # Environment configuration template
 ├── requirements.txt              # Project dependencies
 └── README.md                     # Documentation
@@ -58,6 +62,7 @@ hunt_keyw/
 
 ## Quickstart Guide
 
+### Running via CLI
 Run keyword discovery for any seed keyword:
 
 ```bash
@@ -73,6 +78,18 @@ python main.py --seed "how to lose weight" --rounds 2 --csv weight_loss.csv
 # Force refresh (bypass Redis cache)
 python main.py --seed "coffee" --force-refresh
 ```
+
+### Running the Web Dashboard
+Start the FastAPI server:
+
+```bash
+# Start server with auto-reload (using uvicorn)
+uvicorn server:app --reload
+
+# Or directly run the server script
+python server.py
+```
+Open [http://localhost:8000](http://localhost:8000) in your browser to access the interactive web dashboard.
 
 ### CLI Arguments
 

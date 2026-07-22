@@ -80,7 +80,7 @@ Each fetcher inherits from `BaseFetcher` (`fetchers/base.py`) and implements an 
 #### 2. Normalization & Semantic Deduplication (`pipeline/normalize.py`)
 * **Exact Cleaning**: Lowercases, strips punctuation, leading numbers (`1. `), and extra whitespace. Merges source lists for identical strings.
 * **Semantic Deduplication**:
-  * Loads `SentenceTransformer('all-MiniLM-L6-v2')` to embed all candidate terms into 384-dimensional dense vectors.
+  * Loads `SentenceTransformer('BAAI/bge-base-en-v1.5')` to embed all candidate terms into 768-dimensional dense vectors.
   * Computes an $N \times N$ cosine similarity matrix:
     $$\text{CosSim}(\vec{u}, \vec{v}) = \frac{\vec{u} \cdot \vec{v}}{\|\vec{u}\| \|\vec{v}\|}$$
   * For pairs with similarity $\ge 0.92$, the shorter/redundant term is merged into the more specific term, preventing duplicate variations.
@@ -116,15 +116,40 @@ Because paid APIs like DataForSEO cost money, the agent estimates volume and dif
   * `write_json()`: Dumps Pydantic `KeywordDiscoveryResult` to formatted JSON.
   * `write_csv()`: Exports flat CSV file suitable for Excel/Google Sheets.
 * **`main.py`**:
-  Entrypoint script parsing CLI flags (`--seed`, `--output`, `--csv`, `--rounds`, `--no-semantic`) and running the async loop.
+  Entrypoint script parsing CLI flags (`--seed`, `--output`, `--csv`, `--rounds`, `--no-semantic`, `--force-refresh`) and running the async loop.
+
+---
+
+### E. Database & Fallback Storage (`db/database.py`)
+* **Tables**: Creates `discovery_jobs` and `keywords` tables in Supabase PostgreSQL (via `asyncpg`) if `SUPABASE_DB_URL` is set in the environment.
+* **Fallback Storage**: If no DB connection exists, it automatically falls back to local in-memory storage (`_local_jobs`, `_local_keywords`). This ensures that the CLI and the Web Server work seamlessly out of the box without requiring any external database configuration.
+
+---
+
+### F. FastAPI Web Server & Dashboard (`server.py`, `static/index.html`)
+* **`server.py`**:
+  * Exposes backend API endpoints for triggering and reading discovery runs:
+    * `POST /api/discover`: Launches a discovery background task.
+    * `GET /api/jobs`: Lists running and historical discovery jobs.
+    * `GET /api/jobs/{job_id}`: Retrieves job execution logs and status.
+    * `GET /api/jobs/{job_id}/keywords`: Returns the generated keyword items.
+  * Serves the single-page application dashboard `static/index.html` at the root path (`/`).
+* **`static/index.html`**:
+  * A modern web interface displaying real-time task progress, status logs, interactive data tables with search filters (by intent, tail length), and instant CSV downloads.
 
 ---
 
 ## 3. How to Run & Extend
 
-### Run command:
+### Run command (CLI):
 ```bash
 ./venv/bin/python main.py --seed "remote work software" --csv output.csv
+```
+
+### Run command (Web Dashboard):
+```bash
+uvicorn server:app --reload
+# Or run server directly: python server.py
 ```
 
 ### Extending with New Fetchers:
