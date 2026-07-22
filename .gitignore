@@ -157,6 +157,5 @@ ehthumbs.db
 Thumbs.db
 
 # Project-specific caches and output files
-output/
 output.csv
 output.json
