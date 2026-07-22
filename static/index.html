@@ -1,0 +1,1276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Keyword Discovery Agent Dashboard</title>
+    <!-- Google Font: Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --bg-main: #0b0f19;
+            --bg-sidebar: #111827;
+            --bg-card: #1f2937;
+            --bg-hover: #374151;
+            --border-color: #2e3b4e;
+            --text-primary: #f3f4f6;
+            --text-secondary: #9ca3af;
+            --text-muted: #6b7280;
+            --accent: #6366f1; /* Indigo */
+            --accent-hover: #4f46e5;
+            --accent-glow: rgba(99, 102, 241, 0.15);
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --font-main: 'Inter', sans-serif;
+            --font-mono: 'JetBrains Mono', monospace;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: var(--font-main);
+            background-color: var(--bg-main);
+            color: var(--text-primary);
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* --- Layout --- */
+        .sidebar {
+            width: 320px;
+            background-color: var(--bg-sidebar);
+            border-right: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            flex-shrink: 0;
+        }
+
+        .main-content {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            overflow-y: auto;
+            position: relative;
+        }
+
+        /* --- Sidebar Content --- */
+        .sidebar-header {
+            padding: 24px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .sidebar-title {
+            font-size: 1.25rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #a5b4fc, #6366f1);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .new-btn {
+            background-color: var(--accent);
+            color: white;
+            border: none;
+            padding: 10px 16px;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 0.875rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            margin: 16px 24px;
+            text-decoration: none;
+        }
+
+        .new-btn:hover {
+            background-color: var(--accent-hover);
+            box-shadow: 0 0 12px var(--accent-glow);
+        }
+
+        .history-section {
+            flex-grow: 1;
+            overflow-y: auto;
+            padding: 0 16px 24px 16px;
+        }
+
+        .history-title {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-muted);
+            margin-bottom: 12px;
+            padding-left: 8px;
+            font-weight: 700;
+        }
+
+        .job-list {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .job-item {
+            padding: 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            background-color: transparent;
+            border: 1px solid transparent;
+            transition: all 0.2s ease;
+        }
+
+        .job-item:hover {
+            background-color: rgba(255, 255, 255, 0.03);
+            border-color: var(--border-color);
+        }
+
+        .job-item.active {
+            background-color: var(--accent-glow);
+            border-color: var(--accent);
+        }
+
+        .job-seed {
+            font-weight: 600;
+            font-size: 0.9rem;
+            color: var(--text-primary);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            margin-bottom: 4px;
+        }
+
+        .job-meta {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+        }
+
+        .status-badge {
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .status-completed { background-color: rgba(16, 185, 129, 0.15); color: var(--success); }
+        .status-running { background-color: rgba(245, 158, 11, 0.15); color: var(--warning); animation: pulse 1.5s infinite; }
+        .status-pending { background-color: rgba(107, 114, 128, 0.15); color: var(--text-secondary); }
+        .status-failed { background-color: rgba(239, 68, 68, 0.15); color: var(--danger); }
+
+        /* --- Header --- */
+        .main-header {
+            padding: 20px 40px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background-color: rgba(11, 15, 25, 0.8);
+            backdrop-filter: blur(10px);
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        .header-left {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .header-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+        }
+
+        .header-subtitle {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+        }
+
+        /* --- View Containers --- */
+        .view {
+            display: none;
+            padding: 40px;
+            flex-direction: column;
+            gap: 32px;
+        }
+
+        .view.active-view {
+            display: flex;
+        }
+
+        /* --- Welcome/Search View --- */
+        .welcome-view {
+            display: none;
+            justify-content: center;
+            align-items: center;
+            min-height: calc(100vh - 88px);
+            padding: 40px;
+        }
+
+        .welcome-container {
+            max-width: 650px;
+            width: 100%;
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+            transform: translateY(-40px);
+        }
+
+        .welcome-icon {
+            font-size: 4rem;
+            margin-bottom: 8px;
+        }
+
+        .welcome-heading {
+            font-size: 2.5rem;
+            font-weight: 800;
+            line-gradient: linear-gradient(135deg, #ffffff, #9ca3af);
+            letter-spacing: -0.02em;
+        }
+
+        .welcome-desc {
+            font-size: 1.1rem;
+            color: var(--text-secondary);
+            line-height: 1.6;
+        }
+
+        /* --- Chat/Search Box --- */
+        .search-card {
+            background-color: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 24px;
+            box-shadow: 0 10px 25px -5px rgba(0,0,0,0.3);
+            text-align: left;
+        }
+
+        .search-form {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .input-group {
+            display: flex;
+            gap: 12px;
+        }
+
+        .search-input {
+            flex-grow: 1;
+            background-color: rgba(0, 0, 0, 0.2);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            color: var(--text-primary);
+            padding: 14px 20px;
+            font-size: 1rem;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .search-input:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+        }
+
+        .search-btn {
+            background-color: var(--accent);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            padding: 14px 28px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .search-btn:hover {
+            background-color: var(--accent-hover);
+        }
+
+        .options-grid {
+            display: flex;
+            gap: 24px;
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            border-top: 1px solid rgba(255, 255, 255, 0.05);
+            padding-top: 16px;
+        }
+
+        .option-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .option-item input[type="number"] {
+            width: 60px;
+            background-color: rgba(0, 0, 0, 0.2);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            border-radius: 6px;
+            padding: 4px 8px;
+            outline: none;
+        }
+
+        .option-item input[type="checkbox"] {
+            width: 16px;
+            height: 16px;
+            accent-color: var(--accent);
+            cursor: pointer;
+        }
+
+        /* --- Loading/Progress View --- */
+        .loading-card {
+            background-color: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 32px;
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+            max-width: 800px;
+            margin: 0 auto;
+            width: 100%;
+        }
+
+        .progress-bar-container {
+            width: 100%;
+            height: 8px;
+            background-color: rgba(255, 255, 255, 0.05);
+            border-radius: 999px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .progress-bar-fill {
+            height: 100%;
+            width: 5%;
+            background: linear-gradient(90deg, var(--accent), #a5b4fc);
+            border-radius: 999px;
+            transition: width 0.4s ease;
+        }
+
+        .terminal-logs {
+            background-color: #05070c;
+            border: 1px solid #1a2333;
+            border-radius: 10px;
+            padding: 20px;
+            font-family: var(--font-mono);
+            font-size: 0.85rem;
+            color: #38bdf8;
+            height: 300px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            box-shadow: inset 0 4px 10px rgba(0,0,0,0.5);
+        }
+
+        .log-entry {
+            line-height: 1.5;
+            white-space: pre-wrap;
+        }
+
+        /* --- Dashboard Stats Cards --- */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 24px;
+        }
+
+        .stat-card {
+            background-color: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+        }
+
+        .stat-label {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.02em;
+        }
+
+        .stat-value {
+            font-size: 2.25rem;
+            font-weight: 800;
+            color: var(--text-primary);
+        }
+
+        /* --- Visualizations (Charts) --- */
+        .charts-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 24px;
+        }
+
+        .chart-card {
+            background-color: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            height: 350px;
+        }
+
+        .chart-card h3 {
+            font-size: 1.1rem;
+            font-weight: 700;
+        }
+
+        .chart-container {
+            position: relative;
+            flex-grow: 1;
+            width: 100%;
+            height: 100%;
+        }
+
+        /* --- Keywords Table --- */
+        .table-card {
+            background-color: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .table-header-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 16px;
+        }
+
+        .table-title-group {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .table-title {
+            font-size: 1.25rem;
+            font-weight: 700;
+        }
+
+        .filter-controls {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .filter-input {
+            background-color: rgba(0, 0, 0, 0.2);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            padding: 8px 16px;
+            border-radius: 8px;
+            outline: none;
+            font-size: 0.875rem;
+        }
+
+        .filter-select {
+            background-color: rgba(0, 0, 0, 0.2);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            padding: 8px 16px;
+            border-radius: 8px;
+            outline: none;
+            font-size: 0.875rem;
+            cursor: pointer;
+        }
+
+        .export-btn {
+            background-color: transparent;
+            border: 1px solid var(--accent);
+            color: var(--accent);
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 0.875rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .export-btn:hover {
+            background-color: var(--accent);
+            color: white;
+        }
+
+        .table-container {
+            overflow-x: auto;
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+            font-size: 0.9rem;
+        }
+
+        th {
+            background-color: rgba(255, 255, 255, 0.02);
+            color: var(--text-secondary);
+            font-weight: 600;
+            padding: 14px 18px;
+            border-bottom: 1px solid var(--border-color);
+            text-transform: uppercase;
+            font-size: 0.75rem;
+            letter-spacing: 0.05em;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        th:hover {
+            color: var(--text-primary);
+        }
+
+        td {
+            padding: 14px 18px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+            color: var(--text-primary);
+        }
+
+        tr:hover td {
+            background-color: rgba(255, 255, 255, 0.01);
+        }
+
+        .keyword-term {
+            font-weight: 600;
+            color: #a5b4fc;
+        }
+
+        .intent-badge {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            font-weight: 500;
+            text-transform: capitalize;
+        }
+
+        .intent-informational { background-color: rgba(59, 130, 246, 0.15); color: #60a5fa; }
+        .intent-commercial { background-color: rgba(139, 92, 246, 0.15); color: #a78bfa; }
+        .intent-transactional { background-color: rgba(16, 185, 129, 0.15); color: #34d399; }
+        .intent-comparison { background-color: rgba(245, 158, 11, 0.15); color: #fbbf24; }
+        .intent-navigational { background-color: rgba(239, 68, 68, 0.15); color: #f87171; }
+
+        .type-badge {
+            display: inline-block;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            background-color: rgba(255, 255, 255, 0.05);
+            color: var(--text-secondary);
+        }
+
+        /* --- Animations --- */
+        @keyframes pulse {
+            0% { opacity: 0.6; }
+            50% { opacity: 1; }
+            100% { opacity: 0.6; }
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .spinner {
+            width: 16px;
+            height: 16px;
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            display: inline-block;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- SIDEBAR -->
+    <div class="sidebar">
+        <div class="sidebar-header">
+            <div class="sidebar-title">
+                <span>🔍</span> HuntKeyw Agent
+            </div>
+        </div>
+        <button class="new-btn" id="new-discover-btn">
+            <span>+</span> New Search
+        </button>
+        <div class="history-section">
+            <div class="history-title">Recent Discoveries</div>
+            <ul class="job-list" id="sidebar-job-list">
+                <!-- Loaded dynamically -->
+            </ul>
+        </div>
+    </div>
+
+    <!-- MAIN CONTENT -->
+    <div class="main-content">
+        <!-- HEADER -->
+        <header class="main-header">
+            <div class="header-left">
+                <h1 class="header-title" id="main-header-title">Keyword Discovery Dashboard</h1>
+                <div class="header-subtitle" id="main-header-subtitle">Select or run a discovery job to begin.</div>
+            </div>
+            <div class="header-right">
+                <span class="status-badge status-completed" id="db-status-badge">Checking DB...</span>
+            </div>
+        </header>
+
+        <!-- WELCOME / SEARCH VIEW -->
+        <div class="welcome-view view active-view" id="view-search">
+            <div class="welcome-container">
+                <div class="welcome-icon">⚡</div>
+                <h2 class="welcome-heading">Discover Hidden Search Opportunities</h2>
+                <p class="welcome-desc">
+                    Enter a seed topic or competitor search keyword. Our autonomous agent will crawl search suggestions, recursively expand long-tail variants, perform semantic deduplication, and build a keyword map.
+                </p>
+                <div class="search-card">
+                    <form class="search-form" id="search-form">
+                        <div class="input-group">
+                            <input type="text" class="search-input" id="seed-input" placeholder="e.g. cloud hosting, link building, how to bake bread" required>
+                            <button type="submit" class="search-btn" id="submit-btn">Hunt Keywords</button>
+                        </div>
+                        <div class="options-grid">
+                            <div class="option-item">
+                                <label for="rounds-input">Depth rounds:</label>
+                                <input type="number" id="rounds-input" value="1" min="0" max="3">
+                            </div>
+                            <div class="option-item">
+                                <input type="checkbox" id="refresh-checkbox">
+                                <label for="refresh-checkbox">Force fresh fetch (bypass cache)</label>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- RUNNING / PROGRESS VIEW -->
+        <div class="view" id="view-loading">
+            <div class="loading-card">
+                <h2 style="font-size: 1.5rem; text-align: center;">Keyword Discovery In Progress...</h2>
+                <p style="text-align: center; color: var(--text-secondary);" id="loading-seed-label">Gathering insights for keyword...</p>
+                <div class="progress-bar-container">
+                    <div class="progress-bar-fill" id="progress-fill"></div>
+                </div>
+                <div class="terminal-logs" id="terminal-logs">
+                    <!-- Logs appended live -->
+                </div>
+            </div>
+        </div>
+
+        <!-- RESULTS / DASHBOARD VIEW -->
+        <div class="view" id="view-results">
+            <!-- STATS CARDS -->
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <span class="stat-label">Discovered Terms</span>
+                    <span class="stat-value" id="stat-total">0</span>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-label">Avg Relevance Score</span>
+                    <span class="stat-value" id="stat-relevance">0.00</span>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-label">Avg Difficulty</span>
+                    <span class="stat-value" id="stat-difficulty">0</span>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-label">Primary Search Intent</span>
+                    <span class="stat-value" id="stat-top-intent" style="font-size: 1.8rem; line-height: 1.25;">N/A</span>
+                </div>
+            </div>
+
+            <!-- VISUALIZATIONS -->
+            <div class="charts-grid">
+                <div class="chart-card">
+                    <h3>Search Intent Distribution</h3>
+                    <div class="chart-container">
+                        <canvas id="intentChart"></canvas>
+                    </div>
+                </div>
+                <div class="chart-card">
+                    <h3>Tail Type Breakdown</h3>
+                    <div class="chart-container">
+                        <canvas id="tailChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TABLE OF KEYWORDS -->
+            <div class="table-card">
+                <div class="table-header-row">
+                    <div class="table-title-group">
+                        <span class="table-title">Keyword Catalog</span>
+                        <button class="export-btn" id="export-csv-btn">Export CSV</button>
+                        <button class="export-btn" id="export-json-btn">Export JSON</button>
+                    </div>
+                    <div class="filter-controls">
+                        <input type="text" class="filter-input" id="search-filter" placeholder="Search terms...">
+                        
+                        <select class="filter-select" id="intent-filter">
+                            <option value="">All Intents</option>
+                            <option value="informational">Informational</option>
+                            <option value="commercial">Commercial</option>
+                            <option value="transactional">Transactional</option>
+                            <option value="comparison">Comparison</option>
+                            <option value="navigational">Navigational</option>
+                        </select>
+
+                        <select class="filter-select" id="type-filter">
+                            <option value="">All Tail Types</option>
+                            <option value="short-tail">Short-tail (1-2 words)</option>
+                            <option value="mid-tail">Mid-tail (3-4 words)</option>
+                            <option value="long-tail">Long-tail (5+ words)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th onclick="sortKeywords('term')">Keyword ⇅</th>
+                                <th onclick="sortKeywords('type')">Tail Type ⇅</th>
+                                <th onclick="sortKeywords('word_count')">Words ⇅</th>
+                                <th onclick="sortKeywords('intent')">Intent ⇅</th>
+                                <th>Sources</th>
+                                <th onclick="sortKeywords('volume')">Volume ⇅</th>
+                                <th onclick="sortKeywords('difficulty')">Difficulty ⇅</th>
+                                <th onclick="sortKeywords('relevance_score')">Relevance ⇅</th>
+                            </tr>
+                        </thead>
+                        <tbody id="keyword-table-body">
+                            <!-- Populated dynamically -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- JS Logic -->
+    <script>
+        const API_BASE = window.location.origin;
+
+        // Application State
+        let currentJobId = null;
+        let jobKeywords = [];
+        let sortedField = 'relevance_score';
+        let sortedAscending = false;
+        let pollInterval = null;
+
+        // Charts handles
+        let intentChart = null;
+        let tailChart = null;
+
+        // DOM elements
+        const viewSearch = document.getElementById('view-search');
+        const viewLoading = document.getElementById('view-loading');
+        const viewResults = document.getElementById('view-results');
+        const sidebarJobList = document.getElementById('sidebar-job-list');
+        const newDiscoverBtn = document.getElementById('new-discover-btn');
+        const dbStatusBadge = document.getElementById('db-status-badge');
+
+        const mainHeaderTitle = document.getElementById('main-header-title');
+        const mainHeaderSubtitle = document.getElementById('main-header-subtitle');
+
+        window.addEventListener('DOMContentLoaded', () => {
+            loadJobs();
+            checkDbStatus();
+
+            newDiscoverBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                showView('search');
+                currentJobId = null;
+                // De-activate sidebar item
+                document.querySelectorAll('.job-item').forEach(item => item.classList.remove('active'));
+            });
+
+            document.getElementById('search-form').addEventListener('submit', handleSearchSubmit);
+            document.getElementById('search-filter').addEventListener('input', applyFiltersAndRenderTable);
+            document.getElementById('intent-filter').addEventListener('change', applyFiltersAndRenderTable);
+            document.getElementById('type-filter').addEventListener('change', applyFiltersAndRenderTable);
+
+            document.getElementById('export-csv-btn').addEventListener('click', exportCSV);
+            document.getElementById('export-json-btn').addEventListener('click', exportJSON);
+        });
+
+        function showView(viewName) {
+            viewSearch.classList.remove('active-view');
+            viewLoading.classList.remove('active-view');
+            viewResults.classList.remove('active-view');
+
+            if (viewName === 'search') {
+                viewSearch.classList.add('active-view');
+                mainHeaderTitle.innerText = "Keyword Discovery Studio";
+                mainHeaderSubtitle.innerText = "Initiate keyword searches using free multi-engine suggestion scrapers.";
+            } else if (viewName === 'loading') {
+                viewLoading.classList.add('active-view');
+            } else if (viewName === 'results') {
+                viewResults.classList.add('active-view');
+            }
+        }
+
+        async function checkDbStatus() {
+            try {
+                const response = await fetch(`${API_BASE}/api/jobs`);
+                if (response.ok) {
+                    dbStatusBadge.innerText = "Connected to Supabase PostgreSQL";
+                    dbStatusBadge.className = "status-badge status-completed";
+                }
+            } catch (err) {
+                dbStatusBadge.innerText = "Local cache mode";
+                dbStatusBadge.className = "status-badge status-pending";
+            }
+        }
+
+        async function loadJobs() {
+            try {
+                const response = await fetch(`${API_BASE}/api/jobs`);
+                if (!response.ok) throw new Error("Failed to load jobs");
+                const jobs = await response.json();
+
+                sidebarJobList.innerHTML = '';
+                if (jobs.length === 0) {
+                    sidebarJobList.innerHTML = '<li style="padding: 10px; color: var(--text-muted); font-size: 0.85rem; text-align: center;">No searches recorded.</li>';
+                    return;
+                }
+
+                jobs.forEach(job => {
+                    const li = document.createElement('li');
+                    li.className = `job-item ${job.job_id === currentJobId ? 'active' : ''}`;
+                    li.dataset.jobId = job.job_id;
+
+                    const dateStr = job.created_at ? new Date(job.created_at).toLocaleDateString() : 'Running...';
+                    const keywordCountStr = job.total_keywords ? `${job.total_keywords} terms` : 'Pending';
+
+                    li.innerHTML = `
+                        <div class="job-seed" title="${job.seed_keyword}">${job.seed_keyword}</div>
+                        <div class="job-meta">
+                            <span>${dateStr}</span>
+                            <span class="status-badge status-${job.status}">${keywordCountStr}</span>
+                        </div>
+                    `;
+
+                    li.addEventListener('click', () => selectJob(job.job_id, job.seed_keyword));
+                    sidebarJobList.appendChild(li);
+                });
+            } catch (err) {
+                console.error("Error loading job history sidebar:", err);
+            }
+        }
+
+        async function handleSearchSubmit(e) {
+            e.preventDefault();
+            const seed = document.getElementById('seed-input').value.trim();
+            const rounds = parseInt(document.getElementById('rounds-input').value) || 0;
+            const force_refresh = document.getElementById('refresh-checkbox').checked;
+
+            if (!seed) return;
+
+            document.getElementById('submit-btn').innerHTML = `<span class="spinner"></span> Gathering...`;
+            document.getElementById('submit-btn').disabled = true;
+
+            try {
+                const response = await fetch(`${API_BASE}/api/discover`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ seed, rounds, force_refresh })
+                });
+
+                if (!response.ok) throw new Error("Could not start keyword discovery job");
+                const job = await response.json();
+
+                currentJobId = job.job_id;
+                document.getElementById('loading-seed-label').innerText = `Gathering keyword research and mapping search queries for: "${seed}"`;
+                document.getElementById('terminal-logs').innerHTML = '';
+                
+                showView('loading');
+                loadJobs(); // refresh sidebar list
+                startPolling(job.job_id, seed);
+
+            } catch (err) {
+                alert("Error starting task: " + err.message);
+                document.getElementById('submit-btn').innerHTML = `Hunt Keywords`;
+                document.getElementById('submit-btn').disabled = false;
+            }
+        }
+
+        function startPolling(jobId, seedKeyword) {
+            if (pollInterval) clearInterval(pollInterval);
+            
+            pollInterval = setInterval(async () => {
+                try {
+                    const response = await fetch(`${API_BASE}/api/jobs/${jobId}`);
+                    if (!response.ok) return;
+                    const job = await response.json();
+
+                    // Update progress bar
+                    const progressFill = document.getElementById('progress-fill');
+                    progressFill.style.width = `${job.progress}%`;
+
+                    // Update Logs
+                    const logsContainer = document.getElementById('terminal-logs');
+                    logsContainer.innerHTML = '';
+                    job.logs.forEach(log => {
+                        const div = document.createElement('div');
+                        div.className = 'log-entry';
+                        div.innerText = log;
+                        logsContainer.appendChild(div);
+                    });
+                    logsContainer.scrollTop = logsContainer.scrollHeight;
+
+                    // If completed, load results!
+                    if (job.status === 'completed') {
+                        clearInterval(pollInterval);
+                        document.getElementById('submit-btn').innerHTML = `Hunt Keywords`;
+                        document.getElementById('submit-btn').disabled = false;
+                        selectJob(jobId, seedKeyword);
+                    } else if (job.status === 'failed') {
+                        clearInterval(pollInterval);
+                        document.getElementById('submit-btn').innerHTML = `Hunt Keywords`;
+                        document.getElementById('submit-btn').disabled = false;
+                        alert("Keyword Discovery Job failed. Please check the logs.");
+                    }
+                } catch (err) {
+                    console.error("Error polling job status:", err);
+                }
+            }, 1000);
+        }
+
+        async function selectJob(jobId, seedKeyword) {
+            currentJobId = jobId;
+            if (pollInterval) clearInterval(pollInterval);
+
+            // Highlight sidebar item
+            document.querySelectorAll('.job-item').forEach(item => {
+                item.classList.remove('active');
+                if (item.dataset.jobId === jobId) item.classList.add('active');
+            });
+
+            mainHeaderTitle.innerText = `Topic Map: "${seedKeyword}"`;
+            mainHeaderSubtitle.innerText = `Analyzing semantic query relationships and search engine indicators.`;
+
+            try {
+                // Fetch keywords
+                const response = await fetch(`${API_BASE}/api/jobs/${jobId}/keywords`);
+                if (!response.ok) throw new Error("Failed to load keywords");
+                jobKeywords = await response.json();
+
+                // Compute aggregate metrics
+                updateMetrics();
+
+                // Build Charts
+                renderCharts();
+
+                // Render Table
+                applyFiltersAndRenderTable();
+
+                showView('results');
+                loadJobs(); // update counts on sidebar
+            } catch (err) {
+                console.error("Error loading job details:", err);
+                // If it is running, resume polling
+                try {
+                    const jobResp = await fetch(`${API_BASE}/api/jobs/${jobId}`);
+                    const job = await jobResp.json();
+                    if (job.status === 'running' || job.status === 'pending') {
+                        document.getElementById('loading-seed-label').innerText = `Gathering keyword research and mapping search queries for: "${seedKeyword}"`;
+                        showView('loading');
+                        startPolling(jobId, seedKeyword);
+                    }
+                } catch (e) {}
+            }
+        }
+
+        function updateMetrics() {
+            document.getElementById('stat-total').innerText = jobKeywords.length;
+
+            if (jobKeywords.length === 0) {
+                document.getElementById('stat-relevance').innerText = "0.00";
+                document.getElementById('stat-difficulty').innerText = "0";
+                document.getElementById('stat-top-intent').innerText = "N/A";
+                return;
+            }
+
+            const totalRelevance = jobKeywords.reduce((acc, curr) => acc + curr.relevance_score, 0);
+            document.getElementById('stat-relevance').innerText = (totalRelevance / jobKeywords.length).toFixed(3);
+
+            const hasDifficulty = jobKeywords.filter(k => k.difficulty !== null);
+            if (hasDifficulty.length > 0) {
+                const avgDiff = hasDifficulty.reduce((acc, curr) => acc + curr.difficulty, 0) / hasDifficulty.length;
+                document.getElementById('stat-difficulty').innerText = Math.round(avgDiff);
+            } else {
+                document.getElementById('stat-difficulty').innerText = "—";
+            }
+
+            // Find top intent
+            const intentCounts = {};
+            jobKeywords.forEach(k => {
+                intentCounts[k.intent] = (intentCounts[k.intent] || 0) + 1;
+            });
+            let topIntent = "N/A";
+            let maxCount = 0;
+            for (const [intent, count] of Object.entries(intentCounts)) {
+                if (count > maxCount) {
+                    maxCount = count;
+                    topIntent = intent;
+                }
+            }
+            document.getElementById('stat-top-intent').innerText = topIntent;
+        }
+
+        function renderCharts() {
+            // Intent data
+            const intentData = {
+                informational: 0,
+                commercial: 0,
+                transactional: 0,
+                comparison: 0,
+                navigational: 0
+            };
+            // Tail type data
+            const tailData = {
+                'short-tail': 0,
+                'mid-tail': 0,
+                'long-tail': 0
+            };
+
+            jobKeywords.forEach(k => {
+                if (intentData[k.intent] !== undefined) intentData[k.intent]++;
+                if (tailData[k.type] !== undefined) tailData[k.type]++;
+            });
+
+            // Destruct old charts
+            if (intentChart) intentChart.destroy();
+            if (tailChart) tailChart.destroy();
+
+            // Render Intent Chart
+            const ctxIntent = document.getElementById('intentChart').getContext('2d');
+            intentChart = new Chart(ctxIntent, {
+                type: 'bar',
+                data: {
+                    labels: Object.keys(intentData).map(w => w.charAt(0).toUpperCase() + w.slice(1)),
+                    datasets: [{
+                        label: 'Keywords Count',
+                        data: Object.values(intentData),
+                        backgroundColor: [
+                            'rgba(59, 130, 246, 0.65)',  // Blue
+                            'rgba(139, 92, 246, 0.65)',  // Violet
+                            'rgba(16, 185, 129, 0.65)',  // Emerald
+                            'rgba(245, 158, 11, 0.65)',  // Amber
+                            'rgba(239, 68, 68, 0.65)'    // Rose
+                        ],
+                        borderColor: [
+                            '#3b82f6', '#8b5cf6', '#10b981', '#f59e0b', '#ef4444'
+                        ],
+                        borderWidth: 1.5,
+                        borderRadius: 6
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            grid: { color: 'rgba(255, 255, 255, 0.05)' },
+                            ticks: { color: '#9ca3af' }
+                        },
+                        x: {
+                            grid: { display: false },
+                            ticks: { color: '#9ca3af' }
+                        }
+                    }
+                }
+            });
+
+            // Render Tail Chart
+            const ctxTail = document.getElementById('tailChart').getContext('2d');
+            tailChart = new Chart(ctxTail, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Short-tail (1-2 words)', 'Mid-tail (3-4 words)', 'Long-tail (5+ words)'],
+                    datasets: [{
+                        data: [tailData['short-tail'], tailData['mid-tail'], tailData['long-tail']],
+                        backgroundColor: [
+                            '#f43f5e', // Rose
+                            '#3b82f6', // Blue
+                            '#10b981'  // Emerald
+                        ],
+                        borderWidth: 0,
+                        hoverOffset: 6
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                color: '#f3f4f6',
+                                font: { family: 'Inter', size: 12 },
+                                padding: 16
+                            }
+                        }
+                    },
+                    cutout: '65%'
+                }
+            });
+        }
+
+        function sortKeywords(field) {
+            if (sortedField === field) {
+                sortedAscending = !sortedAscending;
+            } else {
+                sortedField = field;
+                sortedAscending = (field === 'term' || field === 'type' || field === 'intent') ? true : false;
+            }
+            applyFiltersAndRenderTable();
+        }
+
+        function applyFiltersAndRenderTable() {
+            const query = document.getElementById('search-filter').value.toLowerCase().trim();
+            const intentVal = document.getElementById('intent-filter').value;
+            const typeVal = document.getElementById('type-filter').value;
+
+            // Filter
+            let filtered = jobKeywords.filter(k => {
+                const matchesQuery = k.term.toLowerCase().includes(query);
+                const matchesIntent = intentVal === '' || k.intent === intentVal;
+                const matchesType = typeVal === '' || k.type === typeVal;
+                return matchesQuery && matchesIntent && matchesType;
+            });
+
+            // Sort
+            filtered.sort((a, b) => {
+                let valA = a[sortedField];
+                let valB = b[sortedField];
+
+                // handle null values
+                if (valA === null || valA === undefined) valA = -1;
+                if (valB === null || valB === undefined) valB = -1;
+
+                if (typeof valA === 'string') {
+                    return sortedAscending ? valA.localeCompare(valB) : valB.localeCompare(valA);
+                } else {
+                    return sortedAscending ? valA - valB : valB - valA;
+                }
+            });
+
+            // Render table rows
+            const tbody = document.getElementById('keyword-table-body');
+            tbody.innerHTML = '';
+
+            if (filtered.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; color: var(--text-muted); padding: 24px;">No matching keywords found.</td></tr>';
+                return;
+            }
+
+            filtered.forEach(k => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td class="keyword-term">${k.term}</td>
+                    <td><span class="type-badge">${k.type}</span></td>
+                    <td style="font-family: var(--font-mono);">${k.word_count}</td>
+                    <td><span class="intent-badge intent-${k.intent}">${k.intent}</span></td>
+                    <td style="font-size: 0.8rem; color: var(--text-secondary); max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${k.source.join(', ')}">${k.source.join(', ')}</td>
+                    <td style="font-family: var(--font-mono);">${k.volume !== null ? k.volume : '—'}</td>
+                    <td>
+                        <div style="display: flex; align-items: center; gap: 8px; font-family: var(--font-mono);">
+                            <span>${k.difficulty !== null ? k.difficulty : '—'}</span>
+                            ${k.difficulty !== null ? `<div style="width: 40px; height: 4px; background: #374151; border-radius: 2px; overflow: hidden;"><div style="width: ${k.difficulty}%; height: 100%; background: ${k.difficulty > 70 ? 'var(--danger)' : k.difficulty > 40 ? 'var(--warning)' : 'var(--success)'}"></div></div>` : ''}
+                        </div>
+                    </td>
+                    <td style="font-family: var(--font-mono); font-weight: 700; color: ${k.relevance_score > 0.8 ? 'var(--success)' : k.relevance_score > 0.6 ? '#60a5fa' : 'var(--text-secondary)'}">${k.relevance_score.toFixed(3)}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        // Helper to convert array of objects to CSV download
+        function exportCSV() {
+            if (jobKeywords.length === 0) return;
+            const headers = ['term', 'type', 'word_count', 'intent', 'source', 'volume', 'difficulty', 'relevance_score'];
+            
+            const csvRows = [headers.join(',')];
+            jobKeywords.forEach(k => {
+                const values = headers.map(header => {
+                    let val = k[header];
+                    if (header === 'source') {
+                        val = `"${val.join(', ')}"`;
+                    } else if (typeof val === 'string') {
+                        val = `"${val.replace(/"/g, '""')}"`;
+                    } else if (val === null || val === undefined) {
+                        val = '';
+                    }
+                    return val;
+                });
+                csvRows.push(values.join(','));
+            });
+
+            const blob = new Blob([csvRows.join('\n')], { type: 'text/csv' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.setAttribute('href', url);
+            a.setAttribute('download', `keywords_${currentJobId}.csv`);
+            a.click();
+        }
+
+        function exportJSON() {
+            if (jobKeywords.length === 0) return;
+            const blob = new Blob([JSON.stringify(jobKeywords, null, 2)], { type: 'application/json' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.setAttribute('href', url);
+            a.setAttribute('download', `keywords_${currentJobId}.json`);
+            a.click();
+        }
+    </script>
+</body>
+</html>
