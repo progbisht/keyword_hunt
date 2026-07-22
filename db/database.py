@@ -27,7 +27,7 @@ async def init_db() -> bool:
 
     try:
         import asyncpg
-        conn = await asyncpg.connect(db_url)
+        conn = await asyncpg.connect(db_url, statement_cache_size=0)
         try:
             await conn.execute("""
                 CREATE TABLE IF NOT EXISTS discovery_jobs (
@@ -101,7 +101,7 @@ async def save_discovery_result(result: KeywordDiscoveryResult, job_id: Optional
 
     try:
         import asyncpg
-        conn = await asyncpg.connect(db_url)
+        conn = await asyncpg.connect(db_url, statement_cache_size=0)
         try:
             async with conn.transaction():
                 await conn.execute(
@@ -164,7 +164,7 @@ async def get_job_history(limit: int = 20) -> List[Dict]:
 
     try:
         import asyncpg
-        conn = await asyncpg.connect(db_url)
+        conn = await asyncpg.connect(db_url, statement_cache_size=0)
         try:
             rows = await conn.fetch(
                 """
@@ -200,7 +200,7 @@ async def get_keywords_by_job_id(job_id: str) -> List[Dict]:
     try:
         import asyncpg
         import uuid as uuid_pkg
-        conn = await asyncpg.connect(db_url)
+        conn = await asyncpg.connect(db_url, statement_cache_size=0)
         try:
             rows = await conn.fetch(
                 """
